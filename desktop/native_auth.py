@@ -14,6 +14,21 @@ from queue import Empty, SimpleQueue
 IDLE_SECONDS = 30 * 60
 FIRST_RUN_NOTICE_MARKER = 'first-run-notice-v1'
 FIRST_RUN_NOTICE = '该软件免费，邀请码也免费。\n如果你花钱了，那么恭喜你被骗了。'
+NATIVE_FONT_FAMILY = 'Microsoft YaHei UI' if sys.platform == 'win32' else 'TkDefaultFont'
+NATIVE_THEME = {
+    'window': '#F4F7F6',
+    'surface': '#FFFFFF',
+    'border': '#D5E0DA',
+    'text': '#17231F',
+    'muted': '#53625C',
+    'accent': '#0F6B52',
+    'accent_hover': '#0B513E',
+    'accent_soft': '#E4F0EB',
+    'accent_soft_hover': '#D4E8E0',
+    'warning': '#8A4B1C',
+    'progress_track': '#E2EBE6',
+}
+NATIVE_WINDOW = {'width': 640, 'height': 600, 'min_width': 600, 'min_height': 560}
 
 
 def first_run_notice_needed(state_dir):
@@ -215,115 +230,116 @@ class TkLoginView:
         self.modal_kind = None
         self.modal_content = None
         self.close_handler = None
+        self.theme = NATIVE_THEME
         root.title('领+ · 桌面客户端')
-        root.geometry('620x560')
-        root.minsize(560, 520)
-        root.configure(fg_color='#f7faf8')
-        font = ctk.CTkFont(size=14)
-        heading = ctk.CTkFont(size=15, weight='bold')
-        title_font = ctk.CTkFont(size=27, weight='bold')
+        root.geometry(f"{NATIVE_WINDOW['width']}x{NATIVE_WINDOW['height']}")
+        root.minsize(NATIVE_WINDOW['min_width'], NATIVE_WINDOW['min_height'])
+        root.configure(fg_color=self.theme['window'])
+        font = self._font(14)
+        heading = self._font(15, 'bold')
+        title_font = self._font(27, 'bold')
 
-        header = ctk.CTkFrame(root, fg_color='#ffffff', corner_radius=0, height=82)
+        header = ctk.CTkFrame(root, fg_color=self.theme['surface'], corner_radius=0, height=82)
         header.pack(fill='x')
         header.pack_propagate(False)
-        ctk.CTkLabel(header, text='领+', fg_color='#16664e', text_color='#ffffff',
+        ctk.CTkLabel(header, text='领+', fg_color=self.theme['accent'], text_color=self.theme['surface'],
                      corner_radius=9, font=heading, width=40, height=40).pack(side='left', padx=24, pady=20)
-        ctk.CTkLabel(header, text='桌面客户端', text_color='#687672', font=font).pack(side='right', padx=24)
-        ctk.CTkFrame(root, fg_color='#dce4e0', corner_radius=0, height=1).pack(fill='x')
+        ctk.CTkLabel(header, text='桌面客户端', text_color=self.theme['muted'], font=font).pack(side='right', padx=24)
+        ctk.CTkFrame(root, fg_color=self.theme['border'], corner_radius=0, height=1).pack(fill='x')
 
-        body = ctk.CTkFrame(root, fg_color='#f7faf8', corner_radius=0)
+        body = ctk.CTkFrame(root, fg_color=self.theme['window'], corner_radius=0)
         body.pack(fill='both', expand=True)
-        # Keep navigation and form in one content column so the tabs do not
-        # read as a separate full-width header or overlap the form on compact windows.
-        content = ctk.CTkFrame(body, fg_color='#f7faf8', corner_radius=0)
+        content = ctk.CTkFrame(body, fg_color=self.theme['window'], corner_radius=0)
         self.content = content
-        content.place(relx=.5, rely=0, anchor='n', relwidth=.82, relheight=1)
-        navigation = ctk.CTkFrame(content, fg_color='#f7faf8', corner_radius=0, height=60)
+        content.pack(fill='both', expand=True, padx=56)
+        navigation = ctk.CTkFrame(content, fg_color=self.theme['window'], corner_radius=0, height=60)
         self.navigation = navigation
         navigation.pack_propagate(False)
         navigation.pack(fill='x', pady=(20, 0))
         self.login_tab = ctk.CTkButton(
             navigation, text='登录', width=58, height=38, corner_radius=0,
-            fg_color='transparent', hover_color='#eef5f0', text_color='#687672',
+            fg_color='transparent', hover_color=self.theme['accent_soft'], text_color=self.theme['muted'],
             font=font, command=lambda: self._select_tab('login'))
         self.login_tab.pack(side='left', padx=(0, 54))
         self.claim_tab = ctk.CTkButton(
             navigation, text='首次领取', width=88, height=38, corner_radius=0,
-            fg_color='transparent', hover_color='#eef5f0', text_color='#687672',
+            fg_color='transparent', hover_color=self.theme['accent_soft'], text_color=self.theme['muted'],
             font=font, command=lambda: self._select_tab('claim'))
         self.claim_tab.pack(side='left')
-        ctk.CTkFrame(navigation, fg_color='#d8e0dc', corner_radius=0, height=1).place(
+        ctk.CTkFrame(navigation, fg_color=self.theme['border'], corner_radius=0, height=1).place(
             relx=0, rely=1, relwidth=1, anchor='sw')
-        self.tab_indicator = ctk.CTkFrame(navigation, fg_color='#16664e', corner_radius=1,
+        self.tab_indicator = ctk.CTkFrame(navigation, fg_color=self.theme['accent'], corner_radius=1,
                                           width=58, height=3)
         self.tab_indicator.place(x=0, y=57)
 
-        form = ctk.CTkFrame(content, fg_color='#f7faf8', corner_radius=0)
+        form = ctk.CTkFrame(content, fg_color=self.theme['window'], corner_radius=0)
         form.pack(fill='x', pady=(40, 0))
         self.form = form
         form.grid_columnconfigure(0, weight=1)
-        self.eyebrow = ctk.CTkLabel(form, text='', text_color='#a66e28', font=heading)
+        form.grid_columnconfigure(1, weight=0)
+        self.eyebrow = ctk.CTkLabel(form, text='', text_color=self.theme['warning'], font=heading)
         self.eyebrow.grid(row=0, column=0, columnspan=2, sticky='w', pady=(0, 16))
         self.eyebrow.grid_remove()
-        self.title = ctk.CTkLabel(form, text='', text_color='#202d2b', font=title_font)
+        self.title = ctk.CTkLabel(form, text='', text_color=self.theme['text'], font=title_font)
         self.title.grid(row=1, column=0, columnspan=2, sticky='w', pady=(0, 8))
-        self.description = ctk.CTkLabel(form, text='', text_color='#687672', font=font, wraplength=450)
+        self.description = ctk.CTkLabel(form, text='', text_color=self.theme['muted'], font=font, wraplength=450)
         self.description.grid(row=2, column=0, columnspan=2, sticky='w', pady=(0, 32))
-        self.label = ctk.CTkLabel(form, text='', text_color='#202d2b', font=font)
+        self.label = ctk.CTkLabel(form, text='', text_color=self.theme['text'], font=font)
         self.label.grid(row=3, column=0, columnspan=2, sticky='w', pady=(0, 8))
         field = ctk.CTkFrame(form, fg_color='transparent', corner_radius=0, height=50)
         field.grid(row=4, column=0, columnspan=2, sticky='ew')
         field.grid_propagate(False)
         self.entry = ctk.CTkEntry(field, show='*', corner_radius=12, height=50,
-                                  border_width=2, border_color='#16664e', fg_color='#ffffff',
+                                  border_width=2, border_color=self.theme['accent'], fg_color=self.theme['surface'],
                                   placeholder_text='请输入登录码', font=font)
         self.entry.pack(fill='both', expand=True)
         self.entry.bind('<Return>', lambda _: self.flow.submit(self.entry.get()))
         self.reveal_var = tk.BooleanVar(value=False)
         self.reveal = ctk.CTkCheckBox(field, text='显示', variable=self.reveal_var,
-                                      command=self._toggle_reveal, fg_color='#16664e',
+                                      command=self._toggle_reveal, fg_color=self.theme['accent'],
                                       corner_radius=4, checkbox_width=0, checkbox_height=0,
                                       border_width=0, font=font, width=50, height=30)
         self.reveal.place(relx=1, rely=.5, anchor='e', x=-10)
         self.action = ctk.CTkButton(form, text='', corner_radius=12, width=220, height=48,
-                                    fg_color='#16664e', hover_color='#11533e',
+                                    fg_color=self.theme['accent'], hover_color=self.theme['accent_hover'],
                                     font=heading, command=lambda: self.flow.submit(self.entry.get()))
         self.action.grid(row=5, column=0, sticky='w', pady=(26, 0))
         self.recover = ctk.CTkButton(form, text='', corner_radius=12, width=140, height=48,
-                                     fg_color='#e1eee8', text_color='#16664e', hover_color='#d5e8df',
+                                     fg_color=self.theme['accent_soft'], text_color=self.theme['accent'],
+                                     hover_color=self.theme['accent_soft_hover'],
                                      command=self._recover)
         self.recover.grid(row=5, column=1, padx=(12, 0), sticky='w', pady=(26, 0))
         self.progress = ctk.CTkProgressBar(form, mode='indeterminate', height=4, corner_radius=12,
-                                           progress_color='#16664e', fg_color='#e5eae7')
+                                           progress_color=self.theme['accent'], fg_color=self.theme['progress_track'])
         self.progress.grid(row=6, column=0, columnspan=2, sticky='ew', pady=(16, 0))
         self.progress.grid_remove()
-        self.notice = ctk.CTkLabel(form, text='', text_color='#a66e28', font=font, wraplength=470)
+        self.notice = ctk.CTkLabel(form, text='', text_color=self.theme['warning'], font=font, wraplength=470)
         self.notice.grid(row=7, column=0, columnspan=2, sticky='w', pady=(16, 0))
 
-        self.running = ctk.CTkFrame(content, fg_color='#f7faf8', corner_radius=0)
+        self.running = ctk.CTkFrame(content, fg_color=self.theme['window'], corner_radius=0)
         self.running_title = ctk.CTkLabel(
-            self.running, text='客户端运行中', text_color='#202d2b',
+            self.running, text='客户端运行中', text_color=self.theme['text'],
             font=title_font)
         self.running_title.pack(anchor='w', pady=(56, 8))
         self.running_description = ctk.CTkLabel(
             self.running, text='后台已启动，手机请求会在后台自动处理。',
-            text_color='#687672', font=font, wraplength=450)
+            text_color=self.theme['muted'], font=font, wraplength=450)
         self.running_description.pack(anchor='w', pady=(0, 28))
         self.running_status = ctk.CTkLabel(
-            self.running, text='运行状态：正常', text_color='#16664e', font=heading)
+            self.running, text='运行状态：正常', text_color=self.theme['accent'], font=heading)
         self.running_status.pack(anchor='w', pady=(0, 24))
         self.running_open = ctk.CTkButton(
             self.running, text='打开后台', width=220, height=48, corner_radius=12,
-            fg_color='#16664e', hover_color='#11533e', font=heading)
+            fg_color=self.theme['accent'], hover_color=self.theme['accent_hover'], font=heading)
         self.running_open.pack(anchor='w')
         self.running.pack_forget()
 
-        footer = ctk.CTkFrame(root, fg_color='#ffffff', corner_radius=0, height=60)
+        footer = ctk.CTkFrame(root, fg_color=self.theme['surface'], corner_radius=0, height=60)
         footer.pack(fill='x')
         footer.pack_propagate(False)
         from desktop.version import current_version
         self.footer_label = ctk.CTkLabel(footer, text=f'安全登录 · {current_version()} · GitHub @shovelshit',
-                                         text_color='#687672', font=font)
+                                         text_color=self.theme['muted'], font=font)
         self.footer_label.pack(side='left', padx=24, pady=20)
         self.footer_label.bind('<Button-1>', lambda _: webbrowser.open('https://github.com/shovelshit/lynkco-plus-desktop'))
         root.bind('<Escape>', lambda _: self.flow.show_screen('login') if self.flow.screen != 'login' else None)
@@ -331,6 +347,9 @@ class TkLoginView:
         root.bind('<Control-q>', lambda _: self.request_close())
         root.protocol('WM_DELETE_WINDOW', self.request_close)
         self._update_tabs('login')
+
+    def _font(self, size, weight='normal'):
+        return self.ctk.CTkFont(family=NATIVE_FONT_FAMILY, size=size, weight=weight)
 
     def request_close(self):
         if self.modal is not None:
@@ -364,10 +383,14 @@ class TkLoginView:
         active = 'claim' if screen == 'claim' else 'login'
         for name, button in (('login', self.login_tab), ('claim', self.claim_tab)):
             selected = name == active
-            button.configure(text_color='#16664e' if selected else '#7a8580',
-                             font=self.ctk.CTkFont(size=16, weight='bold' if selected else 'normal'))
-        self.tab_indicator.place_configure(x=0 if active == 'login' else 112,
-                                           width=58 if active == 'login' else 88)
+            button.configure(text_color=self.theme['accent'] if selected else self.theme['muted'],
+                             font=self._font(16, 'bold' if selected else 'normal'))
+        self.navigation.update_idletasks()
+        selected_button = self.claim_tab if active == 'claim' else self.login_tab
+        self.tab_indicator.place_configure(
+            x=selected_button.winfo_x(),
+            y=max(0, self.navigation.winfo_height() - 3),
+            width=selected_button.winfo_width())
 
     def show_screen(self, screen):
         self.running.pack_forget()
@@ -446,33 +469,33 @@ class TkLoginView:
         self.modal = dialog
         self.modal_kind = 'recovery'
         dialog.title('恢复登录码')
-        dialog.geometry('480x380')
-        dialog.minsize(440, 360)
+        dialog.geometry('520x410')
+        dialog.minsize(500, 390)
         dialog.transient(self.root)
-        dialog.configure(fg_color='#ffffff')
+        dialog.configure(fg_color=self.theme['surface'])
 
-        content = self.ctk.CTkFrame(dialog, fg_color='#ffffff', corner_radius=12)
+        content = self.ctk.CTkFrame(dialog, fg_color=self.theme['surface'], corner_radius=12)
         self.modal_content = content
-        content.pack(fill='both', expand=True, padx=24, pady=20)
+        content.pack(fill='both', expand=True, padx=28, pady=24)
         self.ctk.CTkLabel(
-            content, text='恢复登录码', text_color='#202d2b',
-            font=self.ctk.CTkFont(size=20, weight='bold')).pack(anchor='w')
+            content, text='恢复登录码', text_color=self.theme['text'],
+            font=self._font(20, 'bold')).pack(anchor='w')
         self.ctk.CTkLabel(
             content, text='输入管理员提供的重置码及已绑定车辆的车架号。',
-            text_color='#687672', wraplength=400).pack(anchor='w', pady=(8, 18))
+            text_color=self.theme['muted'], font=self._font(14), wraplength=440).pack(anchor='w', pady=(8, 18))
 
         self.recovery_entry = self.ctk.CTkEntry(
             content, height=44, corner_radius=12,
-            placeholder_text='重置码', font=self.ctk.CTkFont(size=14))
+            placeholder_text='重置码', font=self._font(14))
         self.recovery_entry.pack(fill='x')
         self.recovery_entry.bind('<Return>', lambda _: submit())
         self.recovery_vin_entry = self.ctk.CTkEntry(
             content, height=44, corner_radius=12,
-            placeholder_text='车架号（17 位）', font=self.ctk.CTkFont(size=14))
+            placeholder_text='车架号（17 位）', font=self._font(14))
         self.recovery_vin_entry.pack(fill='x', pady=(12, 0))
         self.recovery_vin_entry.bind('<Return>', lambda _: submit())
         self.recovery_notice = self.ctk.CTkLabel(
-            content, text='', text_color='#a66e28', wraplength=400,
+            content, text='', text_color=self.theme['warning'], font=self._font(14), wraplength=440,
             anchor='w')
         self.recovery_notice.pack(fill='x', pady=(10, 0))
 
@@ -490,12 +513,13 @@ class TkLoginView:
 
         self.recovery_cancel = self.ctk.CTkButton(
             buttons, text='取消', width=90, height=40, corner_radius=12,
-            fg_color='#e1eee8', text_color='#16664e', hover_color='#d5e8df',
+            fg_color=self.theme['accent_soft'], text_color=self.theme['accent'],
+            hover_color=self.theme['accent_soft_hover'],
             command=cancel)
         self.recovery_cancel.pack(side='right')
         self.recovery_action = self.ctk.CTkButton(
             buttons, text='验证并重置', width=130, height=40, corner_radius=12,
-            fg_color='#16664e', hover_color='#11533e', command=submit)
+            fg_color=self.theme['accent'], hover_color=self.theme['accent_hover'], command=submit)
         self.recovery_action.pack(side='right', padx=(0, 10))
 
         dialog.protocol('WM_DELETE_WINDOW', cancel)
@@ -526,19 +550,19 @@ class TkLoginView:
         self.modal = dialog
         self.modal_kind = 'code'
         dialog.title('保存新的登录码')
-        dialog.geometry('480x300')
-        dialog.minsize(480, 280)
+        dialog.geometry('520x320')
+        dialog.minsize(500, 300)
         dialog.transient(self.root)
-        dialog.configure(fg_color='#ffffff')
+        dialog.configure(fg_color=self.theme['surface'])
         dialog.protocol('WM_DELETE_WINDOW', lambda: None)
-        content = self.ctk.CTkFrame(dialog, fg_color='#ffffff', corner_radius=12)
+        content = self.ctk.CTkFrame(dialog, fg_color=self.theme['surface'], corner_radius=12)
         self.modal_content = content
-        content.pack(fill='both', expand=True, padx=24, pady=20)
-        self.ctk.CTkLabel(content, text='保存新的登录码', text_color='#a66e28',
-                          font=self.ctk.CTkFont(size=18, weight='bold')).pack(anchor='w', pady=(0, 16))
+        content.pack(fill='both', expand=True, padx=28, pady=24)
+        self.ctk.CTkLabel(content, text='保存新的登录码', text_color=self.theme['warning'],
+                          font=self._font(18, 'bold')).pack(anchor='w', pady=(0, 16))
         self.ctk.CTkLabel(content, text='旧码立即失效。新码只显示一次，请先保存。',
-                          text_color='#202d2b').pack(anchor='w', pady=(0, 16))
-        row = self.ctk.CTkFrame(content, fg_color='#ffffff', corner_radius=0)
+                          text_color=self.theme['text'], font=self._font(14)).pack(anchor='w', pady=(0, 16))
+        row = self.ctk.CTkFrame(content, fg_color=self.theme['surface'], corner_radius=0)
         row.pack(fill='x')
         displayed = self.ctk.CTkEntry(row, corner_radius=12, height=40)
         displayed.insert(0, code)
@@ -551,10 +575,11 @@ class TkLoginView:
             dialog.update_idletasks()
 
         self.ctk.CTkButton(row, text='复制', command=copy_code, corner_radius=12,
-                           fg_color='#16664e', hover_color='#11533e', width=70).pack(side='left', padx=(8, 0))
+                           fg_color=self.theme['accent'], hover_color=self.theme['accent_hover'],
+                           width=70).pack(side='left', padx=(8, 0))
         acknowledged = self.tk.BooleanVar(value=False)
         self.ctk.CTkCheckBox(content, text='我已保存新的登录码', variable=acknowledged,
-                             corner_radius=4, fg_color='#16664e',
+                             corner_radius=4, fg_color=self.theme['accent'], font=self._font(14),
                              command=lambda: complete.configure(state='normal' if acknowledged.get() else 'disabled')).pack(anchor='w', pady=(20, 12))
 
         def finish():
@@ -568,7 +593,8 @@ class TkLoginView:
             on_saved()
 
         complete = self.ctk.CTkButton(content, text='完成并打开后台', command=finish,
-                                      corner_radius=12, fg_color='#16664e', hover_color='#11533e')
+                                      corner_radius=12, fg_color=self.theme['accent'],
+                                      hover_color=self.theme['accent_hover'], font=self._font(15, 'bold'))
         complete.configure(state='disabled')
         complete.pack(anchor='e')
         dialog.bind('<Escape>', lambda _: 'break')
@@ -591,6 +617,12 @@ def watch_shutdown(root, stop_event, on_shutdown=None):
 
 
 def run_window(session, open_browser, stop_event=None):
+    if sys.platform == 'win32':
+        try:
+            from desktop.bootstrap import enable_windows_dpi_awareness
+            enable_windows_dpi_awareness()
+        except (ImportError, AttributeError, OSError):
+            pass
     import customtkinter as ctk
 
     ctk.set_appearance_mode('light')
