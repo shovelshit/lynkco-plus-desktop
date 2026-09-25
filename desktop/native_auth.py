@@ -387,10 +387,14 @@ class TkLoginView:
                              font=self._font(16, 'bold' if selected else 'normal'))
         self.navigation.update_idletasks()
         selected_button = self.claim_tab if active == 'claim' else self.login_tab
+        selected_button.update_idletasks()
+        tab_width = selected_button.winfo_width() or selected_button.winfo_reqwidth()
+        navigation_height = self.navigation.winfo_height() or self.navigation.winfo_reqheight()
+        tab_width = max(1, tab_width)
         self.tab_indicator.place_configure(
             x=selected_button.winfo_x(),
-            y=max(0, self.navigation.winfo_height() - 3),
-            width=selected_button.winfo_width())
+            y=max(0, navigation_height - 3),
+            width=tab_width)
 
     def show_screen(self, screen):
         self.running.pack_forget()
@@ -418,6 +422,9 @@ class TkLoginView:
             self.recover.grid()
             self.recover.configure(text='返回登录' if screen == 'reset' else '恢复登录码')
         self._update_tabs(screen)
+        # The first pack pass can report the button's requested width before
+        # Tk has mapped the window. Refresh the underline once geometry settles.
+        self.root.after_idle(lambda active=screen: self._update_tabs(active))
         from desktop.version import current_version
         self.footer_label.configure(text=f'安全登录 · {current_version()} · GitHub @shovelshit')
         self.entry.focus_set()
