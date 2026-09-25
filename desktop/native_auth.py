@@ -251,7 +251,7 @@ class TkLoginView:
         body.pack(fill='both', expand=True)
         content = ctk.CTkFrame(body, fg_color=self.theme['window'], corner_radius=0)
         self.content = content
-        content.pack(fill='both', expand=True, padx=56)
+        content.place(relx=.5, rely=0, anchor='n', relwidth=.82, relheight=1)
         navigation = ctk.CTkFrame(content, fg_color=self.theme['window'], corner_radius=0, height=60)
         self.navigation = navigation
         navigation.pack_propagate(False)

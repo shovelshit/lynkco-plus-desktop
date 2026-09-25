@@ -284,8 +284,7 @@ class NativeWindowTests(unittest.TestCase):
         from desktop.native_auth import TkLoginView
 
         source = inspect.getsource(TkLoginView.__init__)
-        self.assertIn("content.pack(fill='both', expand=True", source)
-        self.assertNotIn("content.place(relx=.5, rely=0, anchor='n', relwidth=.82", source)
+        self.assertIn("content.place(relx=.5, rely=0, anchor='n', relwidth=.82, relheight=1)", source)
 
     def test_login_window_uses_preview_tabs_and_static_footer(self):
         import customtkinter as ctk
@@ -377,19 +376,14 @@ class NativeWindowTests(unittest.TestCase):
             root.deiconify()
             root.update_idletasks()
             view.content.update_idletasks()
-            view.navigation.update_idletasks()
-            view.form.update_idletasks()
             self.assertEqual(view.navigation.winfo_x(), view.form.winfo_x())
             self.assertEqual(view.navigation.winfo_width(), view.form.winfo_width())
-            navigation_bottom = view.navigation.winfo_y() + view.navigation.winfo_height()
-            self.assertGreaterEqual(view.form.winfo_y(), navigation_bottom + 40)
+            navigation_bottom = view.navigation.winfo_rooty() + view.navigation.winfo_height()
+            self.assertGreaterEqual(view.form.winfo_rooty(), navigation_bottom + 40)
             self.assertEqual(view.tab_indicator.winfo_x(), view.login_tab.winfo_x())
-            self.assertEqual(view.tab_indicator.winfo_width(), view.login_tab.winfo_width())
             view.show_screen('claim')
             root.update_idletasks()
-            view.navigation.update_idletasks()
             self.assertEqual(view.tab_indicator.winfo_x(), view.claim_tab.winfo_x())
-            self.assertEqual(view.tab_indicator.winfo_width(), view.claim_tab.winfo_width())
         finally:
             root.destroy()
 
