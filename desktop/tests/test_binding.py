@@ -43,6 +43,7 @@ class FakeCloud:
         self.action_gates = {}
         self.action_errors = {}
         self.auth_error = None
+        self.binding_summary = None
         self.deadlines = []
         self.base_url = 'https://lynkco.ltools.asia'
 
@@ -70,6 +71,8 @@ class FakeCloud:
             if self.auth_error:
                 raise self.auth_error
             return {'userId': 'owner'}
+        if path == '/v1/binding/summary':
+            return self.binding_summary
         if path == '/v1/binding-candidates':
             self.prepare_started.set()
             self.prepare_gates.get(body['session'].get('refreshToken'), self.prepare_release).wait(2)
@@ -129,7 +132,7 @@ class BindingTests(unittest.TestCase):
         self.controller.prepare()
         return self.wait_for_stage('verified')
 
-    def test_unlock_only_verifies_management_token_and_never_recovers(self):
+    def test_unlock_verifies_management_token_and_hydrates_summary_only(self):
         store = MemoryStore()
         first = __import__('desktop.binding', fromlist=['Controller']).Controller(self.cloud, store)
         first.claim('claim-token_123456')
@@ -139,7 +142,10 @@ class BindingTests(unittest.TestCase):
         self.assertTrue(first.has_license())
         first.unlock('recovery-secret')
         self.assertTrue(first.public_state()['hasIdentity'])
-        self.assertEqual(self.cloud.calls, [('GET', '/v1/users/me', None)])
+        self.assertEqual(self.cloud.calls, [
+            ('GET', '/v1/users/me', None),
+            ('GET', '/v1/binding/summary', None),
+        ])
 
     def test_reset_rotates_login_code_and_token(self):
         store = MemoryStore()
@@ -279,6 +285,18 @@ class BindingTests(unittest.TestCase):
         self.assertIn(('POST', '/v1/binding/runs', {'mode': 'share'}), self.cloud.calls)
         with self.assertRaisesRegex(ValueError, '任务类型无效'):
             self.controller.run('unknown')
+
+    def test_unlock_hydrates_bound_account_before_full_refresh(self):
+        store = MemoryStore()
+        store.save({'userId': 'owner', 'managementToken': 'management-secret'}, 'recovery-secret')
+        cloud = FakeCloud()
+        cloud.binding_summary = {'id': 'binding', 'label': 'car', 'status': 'active'}
+        controller = __import__('desktop.binding', fromlist=['Controller']).Controller(cloud, store)
+
+        state = controller.unlock('recovery-secret')
+
+        self.assertEqual(state['binding'], cloud.binding_summary)
+        self.assertEqual([path for _, path, _ in cloud.calls], ['/v1/users/me', '/v1/binding/summary'])
 
     def test_refresh_clears_expired_management_identity_and_persisted_credential(self):
         from desktop.cloud_client import CloudError

@@ -149,9 +149,21 @@ class WebUIContractTests(unittest.TestCase):
         self.assertNotIn('state?.proxy.running && !state.binding', startup)
         self.assertIn('id="proxy-start"', HTML)
 
-    def test_activation_returns_to_overview_without_waiting_for_proxy_disconnect(self):
-        handler = JS[JS.index('$("activate-form").addEventListener'):JS.index('$("stop-proxy").addEventListener')]
-        self.assertIn('navigate("overview")', handler)
+    def test_activation_waits_for_phone_proxy_cleanup_before_overview(self):
+        handler = JS[JS.index('$("activate-form").addEventListener'):JS.index('async function finishCaptureCleanup')]
+        self.assertNotIn('navigate("overview")', handler)
+        cleanup = JS[JS.index('async function finishCaptureCleanup'):JS.index('$("refresh").addEventListener')]
+        self.assertIn('/api/capture/stop', cleanup)
+        self.assertIn('/api/refresh', cleanup)
+        self.assertIn('navigate("overview")', cleanup)
+        self.assertNotIn('if (state.binding)', cleanup)
+        self.assertIn('$("stop-proxy").click()', JS)
+
+    def test_manual_job_keeps_run_failure_reason_when_refresh_fails(self):
+        handler = JS[JS.index('const runTaskNow'):JS.index('runTaskNow($("run-now")')]
+        self.assertIn('result.errorCode', handler)
+        self.assertIn('refreshError', handler)
+        self.assertIn('result.message ||', handler)
 
     def test_long_operations_have_stable_visible_loading_state(self):
         self.assertIn('setButtonLoading', JS)
@@ -307,6 +319,13 @@ class WebUIContractTests(unittest.TestCase):
         self.assertIn('memberVisual(item.iconUrl, "medal")', JS)
         self.assertIn('.member-details', CSS)
         self.assertIn('.medal-list', CSS)
+
+    def test_reward_history_uses_energy_snapshots_for_share_rewards(self):
+        self.assertIn('rewards.shareEnergyBefore', JS)
+        self.assertIn('rewards.shareEnergyAfter', JS)
+        self.assertIn('rewards.shareEnergy', JS)
+        self.assertIn('latest?.rewards?.energyAfter', JS)
+        self.assertNotIn('分享后能量体：${rewards.sharePointsBefore', JS)
 
     def test_tablet_layout_does_not_reserve_removed_sidebar_space(self):
         self.assertRegex(CSS, r'@media\s*\(max-width:\s*1050px\)\s*and\s*\(min-width:\s*721px\)[^{]*\{[\s\S]*?main\s*\{[^}]*margin:\s*0 auto[^}]*width:\s*100%', re.S)

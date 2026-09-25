@@ -105,9 +105,10 @@ class Controller:
     def unlock(self, login_code):
         """Unlock locally, then verify the management token without touching LynkCo."""
         with self.operation:
+            deadline = self._operation_deadline()
             identity = self.store.load(clean_string(login_code, 512))
             try:
-                result = self._cloud_request('GET', '/v1/users/me', token=identity['managementToken'], deadline=self._operation_deadline())
+                result = self._cloud_request('GET', '/v1/users/me', token=identity['managementToken'], deadline=deadline)
             except ValueError as error:
                 if getattr(error, 'code', None) in ('UNAUTHORIZED', 'CREDENTIAL_INVALID'):
                     self.store.invalidate()
@@ -118,6 +119,14 @@ class Controller:
             with self.lock:
                 self.identity = identity
                 self.error = None
+            try:
+                summary = self._request('GET', '/v1/binding/summary', deadline=deadline)
+            except ValueError:
+                # Older cloud deployments do not expose the fast summary route;
+                # the normal refresh below remains the source of truth.
+                summary = None
+            with self.lock:
+                self.binding = summary
             return self.public_state()
 
     def reset(self, reset_code, vin):

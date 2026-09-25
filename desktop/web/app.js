@@ -394,7 +394,11 @@
       const rewards = run.rewards || {};
       const lines = [`积分：${run.pointsBefore ?? "暂无"} → ${run.pointsAfter ?? "暂无"}`];
       if (rewards.signEnergy != null) lines.push(`签到能量体：+${rewards.signEnergy}`);
-      if (run.shareStatus === "success") lines.push(`分享后能量体：${rewards.sharePointsBefore ?? "暂无"} → ${rewards.sharePointsAfter ?? "暂无"}`);
+      if (run.shareStatus === "success") {
+        lines.push(rewards.shareEnergy != null
+          ? `分享能量体：${rewards.shareEnergyBefore ?? "暂无"} → ${rewards.shareEnergyAfter ?? "暂无"}（+${rewards.shareEnergy}）`
+          : "分享能量体：待确认");
+      }
       else lines.push(`分享：${labels[run.shareStatus] || "暂无"}`);
       if (rewards.cardsBefore != null && rewards.cardsAfter != null) {
         const change = rewards.cardsAfter - rewards.cardsBefore;
@@ -576,14 +580,14 @@
       text("sign-task-reward", pointsDelta == null ? "待执行" : `${pointsDelta >= 0 ? "+" : ""}${pointsDelta} 积分`);
       taskIcon("sign-task-icon", latestIsToday ? latest.signStatus : "pending");
       text("share-task-detail", binding.doShare ? "签到时同时完成分享" : "当前未开启分享");
-      const shareEnergy = latest?.rewards?.signEnergy ?? latest?.shareEnergy;
+      const shareEnergy = latest?.rewards?.shareEnergy;
       text("share-task-reward", !binding.doShare ? "已关闭" : shareEnergy == null ? "待执行" : `+${shareEnergy} 能量体`);
       taskIcon("share-task-icon", !binding.doShare ? "disabled" : latestIsToday ? latest.shareStatus : "pending");
       text("next-run-label", binding.status === "active" && binding.nextRunAt ? `下一次执行：${date(binding.nextRunAt)}` : "下一次执行：已暂停");
       const inventory = binding.inventory;
       text("points", inventory?.points ?? latest?.pointsAfter ?? latest?.pointsBefore ?? "--");
       text("sign-cards", inventory?.cards != null ? inventory.cards : binding.inventoryError ? "查询失败" : "暂无");
-      text("energy", inventory?.energy != null ? `${inventory.energy}` : latest?.energyAfter != null ? `${latest.energyAfter}` : binding.inventoryError ? "查询失败" : "暂无");
+      text("energy", inventory?.energy != null ? `${inventory.energy}` : latest?.rewards?.energyAfter != null ? `${latest.rewards.energyAfter}` : binding.inventoryError ? "查询失败" : "暂无");
       renderMemberAssets(inventory);
       text("asset-updated", state.lastRefreshAt ? date(state.lastRefreshAt) : "暂无");
       text(
@@ -1039,20 +1043,30 @@
           serverchan: {enabled: selectedPush === "serverchan", ...(serverchanKey ? {key: serverchanKey} : {})},
         },
       });
-      navigate("overview");
-      notice("");
+      notice("绑定已保存，请关闭手机 Wi-Fi 代理后继续。", true);
     }, null, event.submitter, "保存到云端");
   });
+  async function finishCaptureCleanup() {
+    if (!$("proxy-removed").checked)
+      throw new Error("请先在手机上关闭 Wi-Fi 代理。");
+    await api("/api/capture/stop", { proxyRemoved: true });
+    qrPair = null;
+    let refreshError = null;
+    try {
+      state = await api("/api/refresh", {});
+    } catch (error) {
+      refreshError = error;
+    }
+    navigate("overview");
+    if (refreshError) notice(`绑定已保存，但概览刷新失败：${refreshError.message || "请稍后点击刷新"}`);
+  }
   $("stop-proxy").addEventListener("click", (event) =>
-    perform(async () => {
-      if (!$("proxy-removed").checked)
-        throw new Error("请先在手机上关闭 Wi-Fi 代理。");
-      await api("/api/capture/stop", { proxyRemoved: true });
-      qrPair = null;
-      if (state.binding) navigate("overview");
-    }, "手机连接已断开，现在可以退出助手。", event.currentTarget, "断开中"),
+    perform(finishCaptureCleanup, "手机连接已断开，现在可以退出助手。", event.currentTarget, "断开中"),
   );
-  $("proxy-removed").addEventListener("change", applyCapabilities);
+  $("proxy-removed").addEventListener("change", (event) => {
+    applyCapabilities();
+    if (event.currentTarget.checked && state?.proxy?.running) $("stop-proxy").click();
+  });
   $("refresh").addEventListener("click", (event) =>
     perform(async () => {
       historyItems = [];
@@ -1064,9 +1078,20 @@
       if (kind === "share" && state?.binding?.doShare !== true) throw new Error("当前账号尚未配置分享，请先完成绑定并开启分享。");
       notice(runningMessage);
       const result = await api(path, {mode: kind});
-      await api("/api/refresh", {});
+      let refreshError = null;
+      try {
+        await api("/api/refresh", {});
+      } catch (error) {
+        refreshError = error;
+      }
+      if (refreshError) {
+        const failureMessage = result.message || refreshError?.message || result.errorCode || "任务结果已返回，但状态刷新失败";
+        notice(result.errorCode ? `${failureMessage}（${result.errorCode}）` : failureMessage);
+        return;
+      }
       const completed = result.status === "completed" || result.status === "success";
-      notice(completed ? completedMessage : result.message || `${kind === "share" ? "分享" : "签到"}任务：${labels[result.status] || result.status}`, completed);
+      const resultMessage = result.message || (result.errorCode ? `错误码：${result.errorCode}` : "");
+      notice(completed ? completedMessage : resultMessage || `${kind === "share" ? "分享" : "签到"}任务：${labels[result.status] || result.status}`, completed);
     }, null, event.currentTarget, loadingLabel));
   runTaskNow($("run-now"), "sign", "/api/binding/run", "签到中", "正在执行签到，请稍候。", "今日签到已完成。");
   runTaskNow($("run-share-now"), "share", "/api/binding/run", "分享中", "正在执行分享，请稍候。", "今日分享已完成。");
